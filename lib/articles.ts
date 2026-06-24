@@ -38,3 +38,13 @@ export async function getArticle(slug: string): Promise<Article | null> {
   if (!res.ok) return null
   return res.json() as Promise<Article>
 }
+
+export async function getAllArticles(): Promise<Article[]> {
+  const apiUrl = `https://api.github.com/repos/${REPO}/contents/content`
+  const res = await fetch(apiUrl, { cache: 'no-store' })
+  if (!res.ok) return []
+  const files: { name: string; type: string }[] = await res.json()
+  const slugs = files.filter((f) => f.type === 'file' && f.name.endsWith('.json')).map((f) => f.name.replace('.json', ''))
+  const articles = await Promise.all(slugs.map((s) => getArticle(s)))
+  return articles.filter(Boolean) as Article[]
+}
