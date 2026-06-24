@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm install
       - run: |
           mkdir -p .vercel
           printf '{"projectId":"prj_gE46x5IAuhcOshhfhM0m21k62mFW","orgId":"team_6TnBl6VXyzY45Fd3qP1KdIco"}' > .vercel/project.json
