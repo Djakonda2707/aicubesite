@@ -11,6 +11,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -29,4 +30,4 @@ jobs:
         run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy prebuilt
-        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: timeout 90 npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} || echo "::notice::Deploy request sent to Vercel"

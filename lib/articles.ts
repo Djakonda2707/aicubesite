@@ -22,11 +22,16 @@ export interface Article {
     promise: string
   }
   steps: ArticleStep[]
+  svgBlocks?: {
+    intro?: string
+    steps?: string[]
+  }
   cta: {
     headline: string
     body: string
     buttonText: string
     buttonUrl: string
+    subtext?: string
   }
 }
 
