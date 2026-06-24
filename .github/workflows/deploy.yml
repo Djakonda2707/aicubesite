@@ -11,7 +11,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -26,8 +26,34 @@ jobs:
       - name: Pull Vercel project settings
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Build
-        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Start deployment and capture URL
+        id: deploy
+        run: |
+          OUTPUT=$(timeout 45 npx vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1 || true)
+          echo "$OUTPUT"
+          DEPLOY_URL=$(echo "$OUTPUT" | grep -oE 'https://aicubesite-[a-z0-9]+-djakonda2707s-projects\.vercel\.app' | tail -1)
+          echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "Captured URL: $DEPLOY_URL"
 
-      - name: Deploy prebuilt
-        run: timeout 90 npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} || echo "::notice::Deploy request sent to Vercel"
+      - name: Wait for deployment ready (API polling)
+        if: steps.deploy.outputs.deploy_url != ''
+        run: |
+          DEPLOY_URL="${{ steps.deploy.outputs.deploy_url }}"
+          HOST="${DEPLOY_URL#https://}"
+          TOKEN="${{ secrets.VERCEL_TOKEN }}"
+          TEAM="team_6TnBl6VXyzY45Fd3qP1KdIco"
+
+          echo "Polling status for: $HOST"
+          for i in $(seq 1 20); do
+            STATUS=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+              "https://api.vercel.com/v13/deployments?url=$HOST&teamId=$TEAM&limit=1" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('deployments',[{}])[0].get('readyState','UNKNOWN'))" 2>/dev/null || echo "UNKNOWN")
+            echo "[$i/20] Status: $STATUS"
+            if [ "$STATUS" = "READY" ]; then
+              echo "✅ Deployment is READY!"
+              echo "🔗 Live at: https://aicubesite.vercel.app"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "⚠️ Timed out — deployment may still complete on Vercel's side"
