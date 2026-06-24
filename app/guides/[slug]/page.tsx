@@ -35,6 +35,7 @@ export default async function ArticlePage({ params }: Props) {
     <main className="min-h-screen bg-[#0f0f0f] text-white">
       {/* Header */}
       <div className="max-w-2xl mx-auto px-5 pt-12 pb-4">
+        <a href="/guides" className="text-xs text-gray-500 hover:text-gray-300 mb-6 inline-block">← Все гайды</a>
         <span
           className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-6"
           style={{ background: accent + '22', color: accent }}
@@ -76,7 +77,14 @@ export default async function ArticlePage({ params }: Props) {
                 <h2 className="text-xl font-bold leading-tight">{step.title}</h2>
               </div>
 
-              <p className="text-gray-300 text-[16px] leading-[1.8]">{step.body}</p>
+              <div
+                className="text-gray-300 text-[16px] leading-[1.8]"
+                dangerouslySetInnerHTML={{
+                  __html: step.body
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n/g, '<br/>')
+                }}
+              />
 
               {step.prompt && (
                 <div className="rounded-xl bg-black/60 border border-white/10 p-4 mt-2">
