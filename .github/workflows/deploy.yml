@@ -7,10 +7,12 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       VERCEL_ORG_ID: team_6TnBl6VXyzY45Fd3qP1KdIco
       VERCEL_PROJECT_ID: prj_gE46x5IAuhcOshhfhM0m21k62mFW
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,43 +24,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set Vercel project (skip git integration)
+      - name: Write Vercel project config
         run: |
           mkdir -p .vercel
-          echo '{"projectId":"prj_gE46x5IAuhcOshhfhM0m21k62mFW","orgId":"team_6TnBl6VXyzY45Fd3qP1KdIco"}' > .vercel/project.json
+          printf '{"projectId":"prj_gE46x5IAuhcOshhfhM0m21k62mFW","orgId":"team_6TnBl6VXyzY45Fd3qP1KdIco"}' > .vercel/project.json
 
-      - name: Deploy (direct upload)
+      - name: Remove GitHub link (fix UNKNOWN deployment state)
         run: |
-          OUTPUT=$(timeout 60 npx vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }} 2>&1 || true)
-          echo "$OUTPUT"
-          DEPLOY_URL=$(echo "$OUTPUT" | grep -oE 'https://aicubesite-[a-z0-9]+-djakonda2707s-projects\.vercel\.app' | tail -1)
-          echo "Deploy URL: $DEPLOY_URL"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/prj_gE46x5IAuhcOshhfhM0m21k62mFW/link?teamId=team_6TnBl6VXyzY45Fd3qP1KdIco")
+          echo "DELETE /link HTTP status: $STATUS"
 
-      - name: Poll until READY and update alias
+      - name: Deploy to Vercel
+        run: npx vercel --prod --yes --token="$VERCEL_TOKEN" 2>&1 || true
+
+      - name: Wait for READY
         run: |
-          TOKEN="${{ secrets.VERCEL_TOKEN }}"
-          TEAM="team_6TnBl6VXyzY45Fd3qP1KdIco"
-
           for i in $(seq 1 20); do
-            DEPLOYMENTS=$(curl -sf -H "Authorization: Bearer $TOKEN" \
-              "https://api.vercel.com/v6/deployments?projectId=prj_gE46x5IAuhcOshhfhM0m21k62mFW&teamId=$TEAM&limit=3&target=production" 2>/dev/null || echo '{}')
-
-            READY_URL=$(echo "$DEPLOYMENTS" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-for dep in d.get('deployments',[]):
-  if dep.get('state') == 'READY':
-    print('https://' + dep.get('url',''))
-    break
-" 2>/dev/null)
-
-            echo "[$i/20] Ready URL: ${READY_URL:-none}"
-
-            if [ -n "$READY_URL" ]; then
-              echo "✅ Deployment is READY: $READY_URL"
-              echo "🔗 Production: https://aicubesite.vercel.app"
+            RESP=$(curl -sf \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=prj_gE46x5IAuhcOshhfhM0m21k62mFW&teamId=team_6TnBl6VXyzY45Fd3qP1KdIco&limit=1&target=production" \
+              || echo '{}')
+            STATE=$(echo "$RESP" | jq -r '.deployments[0].state // "UNKNOWN"')
+            URL=$(echo "$RESP" | jq -r '.deployments[0].url // "none"')
+            echo "[$i/20] State=$STATE  URL=$URL"
+            if [ "$STATE" = "READY" ]; then
+              echo "Deployed: https://aicubesite.vercel.app"
               exit 0
             fi
             sleep 15
           done
-          echo "⚠️ Timed out — check Vercel dashboard"
+          echo "Timed out — check Vercel dashboard"
