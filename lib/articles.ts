@@ -1,5 +1,3 @@
-import { kv } from '@vercel/kv'
-
 export interface ArticleStep {
   n: number
   title: string
@@ -30,10 +28,12 @@ export interface Article {
   }
 }
 
-export async function getArticle(slug: string): Promise<Article | null> {
-  return await kv.get<Article>(`article:${slug.toLowerCase()}`)
-}
+const REPO = 'Djakonda2707/aicubesite'
+const BRANCH = 'main'
 
-export async function saveArticle(article: Article): Promise<void> {
-  await kv.set(`article:${article.slug.toLowerCase()}`, article)
+export async function getArticle(slug: string): Promise<Article | null> {
+  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/content/${encodeURIComponent(slug.toLowerCase())}.json`
+  const res = await fetch(url, { next: { revalidate: 60 } })
+  if (!res.ok) return null
+  return res.json() as Promise<Article>
 }

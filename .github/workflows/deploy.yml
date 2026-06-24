@@ -3,56 +3,28 @@ name: Deploy to Vercel
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'components/**'
+      - 'public/**'
+      - 'next.config.*'
+      - 'package*.json'
+      - 'tsconfig.json'
+      - 'tailwind.config.*'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      VERCEL_ORG_ID: team_6TnBl6VXyzY45Fd3qP1KdIco
-      VERCEL_PROJECT_ID: prj_gE46x5IAuhcOshhfhM0m21k62mFW
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Write Vercel project config
-        run: |
+      - run: npm ci
+      - run: |
           mkdir -p .vercel
           printf '{"projectId":"prj_gE46x5IAuhcOshhfhM0m21k62mFW","orgId":"team_6TnBl6VXyzY45Fd3qP1KdIco"}' > .vercel/project.json
-
-      - name: Remove GitHub link (fix UNKNOWN deployment state)
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/prj_gE46x5IAuhcOshhfhM0m21k62mFW/link?teamId=team_6TnBl6VXyzY45Fd3qP1KdIco")
-          echo "DELETE /link HTTP status: $STATUS"
-
-      - name: Deploy to Vercel
-        run: npx vercel --prod --yes --token="$VERCEL_TOKEN" 2>&1 || true
-
-      - name: Wait for READY
-        run: |
-          for i in $(seq 1 20); do
-            RESP=$(curl -sf \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v6/deployments?projectId=prj_gE46x5IAuhcOshhfhM0m21k62mFW&teamId=team_6TnBl6VXyzY45Fd3qP1KdIco&limit=1&target=production" \
-              || echo '{}')
-            STATE=$(echo "$RESP" | jq -r '.deployments[0].state // "UNKNOWN"')
-            URL=$(echo "$RESP" | jq -r '.deployments[0].url // "none"')
-            echo "[$i/20] State=$STATE  URL=$URL"
-            if [ "$STATE" = "READY" ]; then
-              echo "Deployed: https://aicubesite.vercel.app"
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "Timed out — check Vercel dashboard"
+      - run: npx vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
