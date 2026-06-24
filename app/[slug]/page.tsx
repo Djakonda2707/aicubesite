@@ -1,19 +1,17 @@
 import { notFound } from 'next/navigation'
-import { getArticle, getAllSlugs } from '@/lib/articles'
+import { getArticle } from '@/lib/articles'
 import { CopyButton } from '@/components/CopyButton'
 import type { Metadata } from 'next'
+
+export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ slug: string }>
 }
 
-export async function generateStaticParams() {
-  return getAllSlugs().map((slug) => ({ slug }))
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const article = getArticle(slug)
+  const article = await getArticle(slug)
   if (!article) return {}
   return {
     title: article.title,
@@ -28,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params
-  const article = getArticle(slug)
+  const article = await getArticle(slug)
   if (!article) notFound()
 
   const accent = article.accent
@@ -100,7 +98,7 @@ export default async function ArticlePage({ params }: Props) {
               )}
             </div>
 
-            {/* SVG block between steps */}
+            {/* SVG between steps */}
             {article.svgBlocks?.steps?.[i] && (
               <div
                 className="my-6"

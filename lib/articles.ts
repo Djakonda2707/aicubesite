@@ -1,5 +1,4 @@
-import fs from 'fs'
-import path from 'path'
+import { kv } from '@vercel/kv'
 
 export interface ArticleStep {
   n: number
@@ -16,11 +15,7 @@ export interface Article {
   codeword: string
   accent: string
   createdAt: string
-  intro: {
-    hook: string
-    why: string
-    promise: string
-  }
+  intro: { hook: string; why: string; promise: string }
   steps: ArticleStep[]
   svgBlocks?: {
     intro?: string
@@ -35,19 +30,10 @@ export interface Article {
   }
 }
 
-const contentDir = path.join(process.cwd(), 'content')
-
-export function getArticle(slug: string): Article | null {
-  const filePath = path.join(contentDir, `${slug.toLowerCase()}.json`)
-  if (!fs.existsSync(filePath)) return null
-  const raw = fs.readFileSync(filePath, 'utf-8')
-  return JSON.parse(raw) as Article
+export async function getArticle(slug: string): Promise<Article | null> {
+  return await kv.get<Article>(`article:${slug.toLowerCase()}`)
 }
 
-export function getAllSlugs(): string[] {
-  if (!fs.existsSync(contentDir)) return []
-  return fs
-    .readdirSync(contentDir)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => f.replace('.json', ''))
+export async function saveArticle(article: Article): Promise<void> {
+  await kv.set(`article:${article.slug.toLowerCase()}`, article)
 }
