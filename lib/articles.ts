@@ -32,8 +32,9 @@ const REPO = 'Djakonda2707/aicubesite'
 const BRANCH = 'main'
 
 export async function getArticle(slug: string): Promise<Article | null> {
-  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/content/${encodeURIComponent(slug.toLowerCase())}.json`
-  const res = await fetch(url, { next: { revalidate: 60 } })
+  const decodedSlug = decodeURIComponent(slug).toLowerCase()
+  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/content/${encodeURIComponent(decodedSlug)}.json`
+  const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) return null
   return res.json() as Promise<Article>
 }
